@@ -1,3 +1,20 @@
 syntax = "proto3";
 package grpc;
 option go_package = "https://github.com/Moedefeis/MutualExclusion.git;grpc";
+
+service Exclusion {
+    rpc giveToken (Empty) returns (Empty) {}
+    rpc done (PeerId) returns (Empty) {}
+    rpc stopPassingRequest (PeerId) returns (Response) {}
+    rpc startPassing (Empty) returns (Empty) {}
+}
+
+message Empty {}
+
+message PeerId{
+    int32 port = 1;
+}
+
+message Response{
+    bool allowStop = 1;
+}
