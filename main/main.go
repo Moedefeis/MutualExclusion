@@ -21,7 +21,7 @@ var accessCount = 0
 var doneMap = make(map[int32]bool)
 var allDone = make(chan bool)
 var done = false
-var pass sync.Mutex
+var token sync.Mutex
 
 func main() {
 	ownPort, _ := strconv.Atoi(os.Args[1])
@@ -85,7 +85,6 @@ func main() {
 	for !done {
 		select {
 		case <-p.passToken:
-			p.hasToken = false
 			log.Printf("Passed token")
 			go p.clients[p.nextPort].GiveToken(p.ctx, empty)
 		case <-allDone:
@@ -96,15 +95,15 @@ func main() {
 }
 
 func (p *peer) delayBeforeNextAccessInsentive() {
-	delay := rand.Intn(10)
+	delay := rand.Intn(100)
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 	p.wantsAccess = true
 	log.Printf("Wants access")
 	if p.stopped {
-		log.Printf("Requested passing: %d", p.stoppedPort)
 		if p.hasToken {
 			p.StartPassing(p.ctx, empty)
 		} else {
+			log.Printf("Requested passing: %d", p.stoppedPort)
 			p.clients[p.stoppedPort].StartPassing(p.ctx, empty)
 		}
 	}
@@ -125,9 +124,10 @@ type peer struct {
 }
 
 func (p *peer) GiveToken(ctx context.Context, empty *exclusion.Empty) (*exclusion.Empty, error) {
+	token.Lock()
 	log.Printf("Got token")
-	p.hasToken = true
 	p.stopped = false
+	p.hasToken = true
 	if p.wantsAccess && accessCount < 5 {
 		log.Printf("Is accessing")
 		p.accessCriticalSection()
@@ -135,14 +135,15 @@ func (p *peer) GiveToken(ctx context.Context, empty *exclusion.Empty) (*exclusio
 		accessCount++
 		if accessCount == 5 {
 			log.Printf("done")
-			p.pingAllDone()
+			go p.pingAllDone()
 		} else {
 			go p.delayBeforeNextAccessInsentive()
 		}
 		p.stopped = p.requestToStopPassingToken()
 	}
+	token.Unlock()
 	if !p.stopped {
-		p.passToken <- true
+		p.safePass()
 	}
 	return empty, nil
 }
@@ -152,15 +153,23 @@ func (p *peer) requestToStopPassingToken() bool {
 	for _, peer := range p.clients {
 		response, err := peer.StopPassingRequest(p.ctx, &exclusion.PeerId{Port: p.id})
 		if err != nil {
-			log.Fatalf(err.Error())
-		}
-		if !response.AllowStop {
+			log.Printf(err.Error())
+		} else if !response.AllowStop {
 			log.Printf("	not allowed")
 			return false
 		}
 	}
 	log.Printf("	allowed")
 	return true
+}
+
+func (p *peer) safePass() {
+	token.Lock()
+	if p.hasToken {
+		p.hasToken = false
+		p.passToken <- true
+	}
+	token.Unlock()
 }
 
 func (p *peer) StopPassingRequest(ctx context.Context, sender *exclusion.PeerId) (*exclusion.Response, error) {
@@ -173,13 +182,11 @@ func (p *peer) StopPassingRequest(ctx context.Context, sender *exclusion.PeerId)
 }
 
 func (p *peer) StartPassing(ctx context.Context, empty *exclusion.Empty) (*exclusion.Empty, error) {
-	pass.Lock()
 	if p.hasToken && p.stopped {
-		log.Printf("Started passing")
-		p.passToken <- true
 		p.stopped = false
+		log.Printf("Received pass request")
+		p.safePass()
 	}
-	pass.Unlock()
 	return empty, nil
 }
 
