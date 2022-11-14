@@ -95,7 +95,7 @@ func main() {
 }
 
 func (p *peer) delayBeforeNextAccessInsentive() {
-	delay := rand.Intn(100)
+	delay := rand.Intn(50)
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 	p.wantsAccess = true
 	log.Printf("Wants access")
