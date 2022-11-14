@@ -1,4 +1,9 @@
+Peer 2222 accessed critical section
 Peer 3333 accessed critical section
+Peer 4444 accessed critical section
+Peer 1111 accessed critical section
+Peer 2222 accessed critical section
+Peer 1111 accessed critical section
 Peer 4444 accessed critical section
 Peer 1111 accessed critical section
 Peer 2222 accessed critical section
@@ -12,9 +17,4 @@ Peer 1111 accessed critical section
 Peer 2222 accessed critical section
 Peer 3333 accessed critical section
 Peer 4444 accessed critical section
-Peer 1111 accessed critical section
-Peer 2222 accessed critical section
 Peer 3333 accessed critical section
-Peer 4444 accessed critical section
-Peer 1111 accessed critical section
-Peer 2222 accessed critical section
