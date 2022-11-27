@@ -25,7 +25,7 @@ var token sync.Mutex
 
 func main() {
 	ownPort, _ := strconv.Atoi(os.Args[1])
-	log.Printf("%d", ownPort)
+	//log.Printf("%d", ownPort)
 	ports := readPorts(ownPort)
 	rand.Seed(int64(ownPort))
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", ownPort))
@@ -49,7 +49,7 @@ func main() {
 		clients:     make(map[int32]exclusion.ExclusionClient),
 		ctx:         ctx,
 	}
-	log.Printf("%d", p.nextPort)
+	//log.Printf("%d", p.nextPort)
 
 	if p.hasToken {
 		clearCriticalSection()
@@ -85,7 +85,7 @@ func main() {
 	for !done {
 		select {
 		case <-p.passToken:
-			log.Printf("Passed token")
+			//log.Printf("Passed token")
 			go p.clients[p.nextPort].GiveToken(p.ctx, empty)
 		case <-allDone:
 			done = true
@@ -95,15 +95,15 @@ func main() {
 }
 
 func (p *peer) delayBeforeNextAccessInsentive() {
-	delay := rand.Intn(50)
+	delay := rand.Intn(5000)
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 	p.wantsAccess = true
-	log.Printf("Wants access")
+	//log.Printf("Wants access")
 	if p.stopped {
 		if p.hasToken {
 			p.StartPassing(p.ctx, empty)
 		} else {
-			log.Printf("Requested passing: %d", p.stoppedPort)
+			//log.Printf("Requested passing: %d", p.stoppedPort)
 			p.clients[p.stoppedPort].StartPassing(p.ctx, empty)
 		}
 	}
@@ -125,16 +125,17 @@ type peer struct {
 
 func (p *peer) GiveToken(ctx context.Context, empty *exclusion.Empty) (*exclusion.Empty, error) {
 	token.Lock()
-	log.Printf("Got token")
+	//log.Printf("Got token")
 	p.stopped = false
 	p.hasToken = true
 	if p.wantsAccess && accessCount < 5 {
 		log.Printf("Is accessing")
 		p.accessCriticalSection()
+		log.Printf("Done accessing")
 		p.wantsAccess = false
 		accessCount++
 		if accessCount == 5 {
-			log.Printf("done")
+			//log.Printf("done")
 			go p.pingAllDone()
 		} else {
 			go p.delayBeforeNextAccessInsentive()
@@ -149,17 +150,17 @@ func (p *peer) GiveToken(ctx context.Context, empty *exclusion.Empty) (*exclusio
 }
 
 func (p *peer) requestToStopPassingToken() bool {
-	log.Printf("Requested stop")
+	//log.Printf("Requested stop")
 	for _, peer := range p.clients {
 		response, err := peer.StopPassingRequest(p.ctx, &exclusion.PeerId{Port: p.id})
 		if err != nil {
 			log.Printf(err.Error())
 		} else if !response.AllowStop {
-			log.Printf("	not allowed")
+			//log.Printf("	not allowed")
 			return false
 		}
 	}
-	log.Printf("	allowed")
+	//log.Printf("	allowed")
 	return true
 }
 
@@ -184,7 +185,7 @@ func (p *peer) StopPassingRequest(ctx context.Context, sender *exclusion.PeerId)
 func (p *peer) StartPassing(ctx context.Context, empty *exclusion.Empty) (*exclusion.Empty, error) {
 	if p.hasToken && p.stopped {
 		p.stopped = false
-		log.Printf("Received pass request")
+		//log.Printf("Received pass request")
 		p.safePass()
 	}
 	return empty, nil
@@ -237,6 +238,8 @@ func (p *peer) accessCriticalSection() {
 	if err != nil {
 		log.Fatalf("Error trying to write file: %v", err)
 	}
+
+	time.Sleep(time.Millisecond * 2000)
 }
 
 func readPorts(ownPort int) []int {
